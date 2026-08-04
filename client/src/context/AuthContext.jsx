@@ -8,15 +8,20 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
+  // Tracks how the current session was established, so the UI can skip
+  // re-probing this device when we already know it just used a passkey.
+  const [loginMethod, setLoginMethod] = useState(null);
 
-  const applySession = useCallback((token, user) => {
+  const applySession = useCallback((token, user, method) => {
     localStorage.setItem(TOKEN_KEY, token);
     setUser(user);
+    setLoginMethod(method);
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
+    setLoginMethod(null);
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -41,7 +46,7 @@ export function AuthProvider({ children }) {
   const continueWithPassword = useCallback(
     async (email, password) => {
       const { data } = await api.post('/auth/continue', { email, password });
-      applySession(data.token, data.user);
+      applySession(data.token, data.user, 'password');
       return { user: data.user, isNewUser: data.isNewUser };
     },
     [applySession],
@@ -50,7 +55,7 @@ export function AuthProvider({ children }) {
   const loginPasskey = useCallback(
     async () => {
       const data = await loginWithPasskeyRequest();
-      applySession(data.token, data.user);
+      applySession(data.token, data.user, 'passkey');
       return data.user;
     },
     [applySession],
@@ -59,6 +64,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     initializing,
+    loginMethod,
     continueWithPassword,
     loginPasskey,
     logout,

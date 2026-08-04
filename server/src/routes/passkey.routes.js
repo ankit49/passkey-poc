@@ -12,6 +12,8 @@ import {
   getCredentialById,
   saveCredential,
   updateCredentialCounter,
+  renameCredential,
+  deleteCredential,
   setChallenge,
   getChallenge,
   clearChallenge,
@@ -23,6 +25,26 @@ const router = Router();
 const rpName = process.env.RP_NAME;
 const rpID = process.env.RP_ID;
 const origin = process.env.ORIGIN;
+
+// Best-effort, human-friendly default name for a newly registered passkey.
+function guessDeviceName(userAgent = '') {
+  if (/iPhone/.test(userAgent)) return 'iPhone';
+  if (/iPad/.test(userAgent)) return 'iPad';
+  if (/Android/.test(userAgent)) return 'Android device';
+  if (/Macintosh/.test(userAgent)) return 'Mac';
+  if (/Windows/.test(userAgent)) return 'Windows PC';
+  return 'Passkey';
+}
+
+function toPublicCredential(credential) {
+  return {
+    id: credential.id,
+    name: credential.name,
+    deviceType: credential.deviceType,
+    backedUp: credential.backedUp,
+    createdAt: credential.createdAt,
+  };
+}
 
 // Step 1: logged-in user requests options to register a new passkey (initial or additional device).
 router.post('/registration/options', requireAuth, async (req, res) => {
@@ -55,6 +77,8 @@ router.post('/registration/verify', requireAuth, async (req, res) => {
   const user = findUserById(req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
+  const { name, response } = req.body || {};
+
   const expectedChallenge = getChallenge(`reg:${user.id}`);
   if (!expectedChallenge) {
     return res.status(400).json({ error: 'Registration challenge expired or not found. Please try again.' });
@@ -63,7 +87,7 @@ router.post('/registration/verify', requireAuth, async (req, res) => {
   let verification;
   try {
     verification = await verifyRegistrationResponse({
-      response: req.body,
+      response,
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
@@ -82,6 +106,7 @@ router.post('/registration/verify', requireAuth, async (req, res) => {
   saveCredential({
     id: credential.id,
     userId: user.id,
+    name: (name || '').trim() || guessDeviceName(req.headers['user-agent']),
     publicKey: credential.publicKey,
     counter: credential.counter,
     transports: credential.transports,
@@ -161,6 +186,37 @@ router.post('/authentication/verify', async (req, res) => {
       credentialIds: creds.map((c) => c.id),
     },
   });
+});
+
+// List the logged-in user's registered passkeys.
+router.get('/credentials', requireAuth, (req, res) => {
+  const credentials = getCredentialsByUserId(req.userId).map(toPublicCredential);
+  res.json({ credentials });
+});
+
+// Rename a passkey owned by the logged-in user.
+router.patch('/credentials/:credentialId', requireAuth, (req, res) => {
+  const { name } = req.body || {};
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+
+  const credential = getCredentialById(req.params.credentialId);
+  if (!credential || credential.userId !== req.userId) {
+    return res.status(404).json({ error: 'Passkey not found' });
+  }
+
+  renameCredential(credential.id, name.trim());
+  res.json({ credential: toPublicCredential(credential) });
+});
+
+// Delete a passkey owned by the logged-in user.
+router.delete('/credentials/:credentialId', requireAuth, (req, res) => {
+  const credential = getCredentialById(req.params.credentialId);
+  if (!credential || credential.userId !== req.userId) {
+    return res.status(404).json({ error: 'Passkey not found' });
+  }
+
+  deleteCredential(credential.id);
+  res.json({ deleted: true });
 });
 
 export default router;

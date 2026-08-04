@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 
 const users = new Map(); // id -> { id, email, passwordHash, createdAt }
 const usersByEmail = new Map(); // email -> id
-const credentials = new Map(); // credentialId (base64url) -> { id, userId, publicKey, counter, transports, deviceType, backedUp }
+const credentials = new Map(); // credentialId (base64url) -> { id, userId, name, publicKey, counter, transports, deviceType, backedUp }
 const challenges = new Map(); // key -> { challenge, expiresAt }
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -41,6 +41,16 @@ export function saveCredential(credential) {
 export function updateCredentialCounter(credentialId, counter) {
   const cred = credentials.get(credentialId);
   if (cred) cred.counter = counter;
+}
+
+export function renameCredential(credentialId, name) {
+  const cred = credentials.get(credentialId);
+  if (cred) cred.name = name;
+  return cred;
+}
+
+export function deleteCredential(credentialId) {
+  return credentials.delete(credentialId);
 }
 
 export function setChallenge(key, challenge) {

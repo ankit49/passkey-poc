@@ -97,3 +97,64 @@
   font-size: 14px;
   margin: 0;
 }
+
+.passkey-manager {
+  text-align: left;
+  border-top: 1px solid var(--border, #444);
+  padding-top: 12px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.passkey-manager h2 {
+  font-size: 18px;
+  text-align: left;
+}
+
+.passkey-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.passkey-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border, #444);
+  border-radius: 8px;
+}
+
+.passkey-row input {
+  margin: 0;
+}
+
+.passkey-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.passkey-row-actions button {
+  flex: 1;
+  width: auto;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.passkey-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+.passkey-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

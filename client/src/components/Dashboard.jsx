@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { enablePasskeyForCurrentUser, deviceHasPasskey } from '../utils/webauthn';
+import PasskeyManager from './PasskeyManager';
 
 export default function Dashboard() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, refreshUser, loginMethod } = useAuth();
   const [checkingDevice, setCheckingDevice] = useState(user.hasPasskey);
   const [deviceEnrolled, setDeviceEnrolled] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showManager, setShowManager] = useState(false);
 
   useEffect(() => {
     if (!user.hasPasskey) {
+      setCheckingDevice(false);
+      return;
+    }
+    // Already proved this device has a working passkey - no need to re-probe it.
+    if (loginMethod === 'passkey') {
+      setDeviceEnrolled(true);
       setCheckingDevice(false);
       return;
     }
@@ -24,7 +32,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [user.hasPasskey, user.credentialIds]);
+  }, [user.hasPasskey, user.credentialIds, loginMethod]);
 
   async function handleEnablePasskey() {
     setError('');
@@ -58,6 +66,12 @@ export default function Dashboard() {
           Enable passkey on this device
         </button>
       )}
+
+      <button type="button" className="secondary" onClick={() => setShowManager((v) => !v)}>
+        {showManager ? 'Hide passkeys' : 'Manage passkeys'}
+      </button>
+
+      {showManager && <PasskeyManager onChange={refreshUser} />}
 
       <button type="button" className="secondary" onClick={logout}>
         Logout
