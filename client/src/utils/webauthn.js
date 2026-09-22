@@ -28,7 +28,8 @@ export async function deletePasskey(credentialId) {
 
 export async function checkPasskeyForEmail(email) {
   const { data: options } = await api.post('/passkey/authentication/options', { email });
-  if (!options.allowCredentials?.length) return false;
+  const credentialCount = options.allowCredentials?.length || 0;
+  if (!credentialCount) return { available: false, credentialCount, reason: 'Server returned no passkeys for this email.' };
 
   try {
     const credential = await navigator.credentials.get({
@@ -45,9 +46,17 @@ export async function checkPasskeyForEmail(email) {
         })),
       },
     });
-    return Boolean(credential);
-  } catch {
-    return false;
+    return {
+      available: Boolean(credential),
+      credentialCount,
+      reason: credential ? 'Matching passkey returned by the browser.' : 'Browser returned no matching credential.',
+    };
+  } catch (error) {
+    return {
+      available: false,
+      credentialCount,
+      reason: `${error.name || 'WebAuthn error'}: ${error.message || 'silent request rejected'}`,
+    };
   }
 }
 
