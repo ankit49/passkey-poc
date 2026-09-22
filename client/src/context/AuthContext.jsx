@@ -55,8 +55,8 @@ export function AuthProvider({ children }) {
   const checkPasskey = useCallback((email) => checkPasskeyForEmail(email), []);
 
   const loginPasskey = useCallback(
-    async (email) => {
-      const data = await loginWithPasskeyRequest(email);
+    async (checkResult) => {
+      const data = await loginWithPasskeyRequest(checkResult);
       applySession(data.token, data.user, 'passkey');
       return data.user;
     },

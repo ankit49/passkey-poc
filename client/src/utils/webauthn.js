@@ -1,4 +1,4 @@
-import { startRegistration, startAuthentication, base64URLStringToBuffer } from '@simplewebauthn/browser';
+import { startRegistration, base64URLStringToBuffer } from '@simplewebauthn/browser';
 import api from '../api/client';
 
 // Registers a new passkey for the currently logged-in user (initial device or an additional one).
@@ -50,6 +50,8 @@ export async function checkPasskeyForEmail(email) {
       available: Boolean(credential),
       credentialCount,
       reason: credential ? 'Matching passkey returned by the browser.' : 'Browser returned no matching credential.',
+      requestId: options.requestId,
+      response: credential ? credentialToJSON(credential) : null,
     };
   } catch (error) {
     return {
@@ -60,17 +62,39 @@ export async function checkPasskeyForEmail(email) {
   }
 }
 
-// Starts passkey login for the already-validated account.
-export async function loginWithPasskey(email) {
-  const { data: options } = await api.post('/passkey/authentication/options', { email });
-  const assertionResponse = await startAuthentication({
-    optionsJSON: options,
-  });
+// Verifies the assertion already returned by the availability check.
+export async function loginWithPasskey(checkResult) {
   const { data } = await api.post('/passkey/authentication/verify', {
-    requestId: options.requestId,
-    response: assertionResponse,
+    requestId: checkResult.requestId,
+    response: checkResult.response,
   });
   return data;
+}
+
+function credentialToJSON(credential) {
+  const response = credential.response;
+  return {
+    id: credential.id,
+    rawId: bufferToBase64Url(credential.rawId),
+    response: {
+      clientDataJSON: bufferToBase64Url(response.clientDataJSON),
+      authenticatorData: bufferToBase64Url(response.authenticatorData),
+      signature: bufferToBase64Url(response.signature),
+      userHandle: response.userHandle ? bufferToBase64Url(response.userHandle) : null,
+    },
+    type: credential.type,
+    clientExtensionResults: credential.getClientExtensionResults(),
+    authenticatorAttachment: credential.authenticatorAttachment,
+  };
+}
+
+function bufferToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 export async function deviceHasListedPasskey(credentialIds) {
