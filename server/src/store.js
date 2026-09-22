@@ -8,16 +8,21 @@ const challenges = new Map(); // key -> { challenge, expiresAt }
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
 export function createUser({ email, passwordHash }) {
   const id = randomUUID();
-  const user = { id, email, passwordHash, createdAt: new Date().toISOString() };
+  const normalizedEmail = normalizeEmail(email);
+  const user = { id, email: normalizedEmail, passwordHash, createdAt: new Date().toISOString() };
   users.set(id, user);
-  usersByEmail.set(email.toLowerCase(), id);
+  usersByEmail.set(normalizedEmail, id);
   return user;
 }
 
 export function findUserByEmail(email) {
-  const id = usersByEmail.get(email.toLowerCase());
+  const id = usersByEmail.get(normalizeEmail(email));
   return id ? users.get(id) : undefined;
 }
 

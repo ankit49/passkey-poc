@@ -124,6 +124,7 @@ router.post('/authentication/options', async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
   const user = email ? findUserByEmail(email) : undefined;
   const userPasskeys = user ? getCredentialsByUserId(user.id) : [];
+  console.log(`[passkey] options email=${email || '<empty>'} user=${user ? user.id : 'not-found'} credentials=${userPasskeys.length}`);
   const options = await generateAuthenticationOptions({
     rpID,
     allowCredentials: userPasskeys.map((passkey) => ({
