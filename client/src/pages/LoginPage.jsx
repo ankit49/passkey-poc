@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage({ onRegistered }) {
@@ -7,6 +7,17 @@ export default function LoginPage({ onRegistered }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const passkeyCheckStarted = useRef(false);
+
+  function handleEmailFocus() {
+    if (passkeyCheckStarted.current) return;
+    passkeyCheckStarted.current = true;
+
+    loginPasskey().catch(() => {
+      // No passkey, unsupported browser, or user cancellation: keep password login available.
+    });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -22,18 +33,6 @@ export default function LoginPage({ onRegistered }) {
     }
   }
 
-  async function handlePasskeyLogin() {
-    setError('');
-    setBusy(true);
-    try {
-      await loginPasskey();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Passkey login failed.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="auth-card">
       <h1>Passkey POC</h1>
@@ -42,7 +41,14 @@ export default function LoginPage({ onRegistered }) {
       <form onSubmit={handleSubmit}>
         <label>
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onFocus={handleEmailFocus}
+            autoComplete="username"
+            required
+          />
         </label>
         <label>
           Password
@@ -62,9 +68,6 @@ export default function LoginPage({ onRegistered }) {
         </button>
       </form>
 
-      <button type="button" className="secondary" disabled={busy} onClick={handlePasskeyLogin}>
-        Login with passkey
-      </button>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { enablePasskeyForCurrentUser, deviceHasPasskey } from '../utils/webauthn';
+import { enablePasskeyForCurrentUser, deviceHasListedPasskey } from '../utils/webauthn';
 import PasskeyManager from './PasskeyManager';
 
 export default function Dashboard() {
@@ -23,7 +23,7 @@ export default function Dashboard() {
       return;
     }
     let cancelled = false;
-    deviceHasPasskey(user.credentialIds).then((enrolled) => {
+    deviceHasListedPasskey(user.credentialIds).then((enrolled) => {
       if (!cancelled) {
         setDeviceEnrolled(enrolled);
         setCheckingDevice(false);

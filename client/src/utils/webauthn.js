@@ -26,13 +26,15 @@ export async function deletePasskey(credentialId) {
   await api.delete(`/passkey/credentials/${credentialId}`);
 }
 
-// Logs a user in using a discoverable passkey - no email needed, the browser
-// prompts the user to pick from any passkey it holds for this site.
-export async function loginWithPasskey() {
-  const { data: options } = await api.post('/passkey/authentication/options');
-  const assertionResponse = await startAuthentication({ optionsJSON: options });
+// Logs in only after a silent discoverable-credential probe finds a passkey.
+export async function loginWithPasskeyIfAvailable() {
+  const { data: probeOptions } = await api.post('/passkey/authentication/options');
+  if (!(await deviceHasPasskey(probeOptions))) return null;
+
+  const { data: authenticationOptions } = await api.post('/passkey/authentication/options');
+  const assertionResponse = await startAuthentication({ optionsJSON: authenticationOptions });
   const { data } = await api.post('/passkey/authentication/verify', {
-    requestId: options.requestId,
+    requestId: authenticationOptions.requestId,
     response: assertionResponse,
   });
   return data;
@@ -51,7 +53,27 @@ function supportsSilentMediation() {
   return !isWebKit;
 }
 
-export async function deviceHasPasskey(credentialIds) {
+export async function deviceHasPasskey(options) {
+  if (!window.PublicKeyCredential || !navigator.credentials?.get) return false;
+  if (!supportsSilentMediation()) return false;
+
+  try {
+    const credential = await navigator.credentials.get({
+      mediation: 'silent',
+      publicKey: {
+        challenge: base64URLStringToBuffer(options.challenge),
+        rpId: window.location.hostname,
+        userVerification: 'preferred',
+        timeout: 2500,
+      },
+    });
+    return Boolean(credential);
+  } catch {
+    return false;
+  }
+}
+
+export async function deviceHasListedPasskey(credentialIds) {
   if (!credentialIds || credentialIds.length === 0) return false;
   if (!window.PublicKeyCredential || !navigator.credentials?.get) return false;
   if (!supportsSilentMediation()) return false;

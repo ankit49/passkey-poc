@@ -118,12 +118,13 @@ router.post('/registration/verify', requireAuth, async (req, res) => {
   res.json({ verified: true });
 });
 
-// Step 1: no identifier needed - options omit allowCredentials so the browser/authenticator
-// presents any discoverable (resident-key) passkey it holds for this RP.
+// Authentication options omit allowCredentials so the browser can discover any passkey for this RP.
 router.post('/authentication/options', async (req, res) => {
   const options = await generateAuthenticationOptions({
     rpID,
     userVerification: 'preferred',
+    // Cross-device (QR/hybrid) sign-in needs more time than same-device prompts.
+    timeout: 120000,
   });
 
   const requestId = randomUUID();
