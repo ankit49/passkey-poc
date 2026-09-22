@@ -8,6 +8,7 @@ import {
 } from '@simplewebauthn/server';
 import {
   findUserById,
+  findUserByEmail,
   getCredentialsByUserId,
   getCredentialById,
   saveCredential,
@@ -120,8 +121,15 @@ router.post('/registration/verify', requireAuth, async (req, res) => {
 
 // Authentication options omit allowCredentials so the browser can discover any passkey for this RP.
 router.post('/authentication/options', async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+  const user = email ? findUserByEmail(email) : undefined;
+  const userPasskeys = user ? getCredentialsByUserId(user.id) : [];
   const options = await generateAuthenticationOptions({
     rpID,
+    allowCredentials: userPasskeys.map((passkey) => ({
+      id: passkey.id,
+      transports: passkey.transports,
+    })),
     userVerification: 'preferred',
     // Cross-device (QR/hybrid) sign-in needs more time than same-device prompts.
     timeout: 120000,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage({ onRegistered }) {
@@ -9,47 +9,36 @@ export default function LoginPage({ onRegistered }) {
   const [busy, setBusy] = useState(false);
   const [debugLogs, setDebugLogs] = useState([]);
 
-  const passkeyAvailable = useRef(false);
-  const passkeyLoginStarted = useRef(false);
-  const passkeyCheck = useRef(Promise.resolve(false));
+  const passkeyEmailChecked = useRef('');
 
   function addDebugLog(message, type = 'info') {
     setDebugLogs((logs) => [...logs.slice(-4), { message, type, time: new Date().toLocaleTimeString() }]);
   }
 
-  useEffect(() => {
-    addDebugLog('Step 1: checking for a passkey silently...');
-    passkeyCheck.current = checkPasskey()
-      .then((result) => {
-        passkeyAvailable.current = result.available;
-        addDebugLog(result.available ? 'Passkey found. Waiting for email-field focus.' : `No passkey found: ${result.reason}`);
-        return result.available;
-      })
-      .catch((err) => {
-        passkeyAvailable.current = false;
-        addDebugLog(`Silent check failed: ${getErrorMessage(err)}`, 'error');
-        return false;
-      });
-  }, [checkPasskey]);
-
-  async function handleEmailFocus() {
-    if (passkeyLoginStarted.current) return;
-    passkeyLoginStarted.current = true;
-
-    addDebugLog('Email focused. Waiting for silent check to finish.');
-    await passkeyCheck.current;
-    if (!passkeyAvailable.current) {
-      addDebugLog('No passkey available. Passkey login not started.');
+  async function handleEmailBlur() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      addDebugLog('Email is not valid. Passkey check skipped.');
       return;
     }
+    if (passkeyEmailChecked.current === normalizedEmail) return;
+    passkeyEmailChecked.current = normalizedEmail;
 
-    addDebugLog('Step 2: starting passkey login...');
-    loginPasskey()
-      .then(() => addDebugLog('Passkey login completed.', 'success'))
-      .catch((err) => {
-        addDebugLog(`Passkey login failed: ${getErrorMessage(err)}`, 'error');
-        // Keep password login available after passkey cancellation or failure.
-      });
+    addDebugLog('Valid email entered. Checking for this user\'s passkey...');
+    try {
+      const available = await checkPasskey(normalizedEmail);
+      if (!available) {
+        addDebugLog('No matching passkey found. Continue with password.');
+        return;
+      }
+
+      addDebugLog('Matching passkey found. Starting passkey login...');
+      await loginPasskey(normalizedEmail);
+      addDebugLog('Passkey login completed.', 'success');
+    } catch (err) {
+      addDebugLog(`Passkey login failed: ${getErrorMessage(err)}`, 'error');
+      // Keep password login available after passkey cancellation or failure.
+    }
   }
 
   function getErrorMessage(err) {
@@ -96,7 +85,7 @@ export default function LoginPage({ onRegistered }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            onFocus={handleEmailFocus}
+            onBlur={handleEmailBlur}
             autoComplete="username"
             required
           />

@@ -26,28 +26,9 @@ export async function deletePasskey(credentialId) {
   await api.delete(`/passkey/credentials/${credentialId}`);
 }
 
-// Checks for a discoverable passkey without showing UI or signing in.
-export async function checkPasskeyAvailability() {
-  const { data: options } = await api.post('/passkey/authentication/options');
-  const result = await getSilentPasskey(options);
-  return result;
-}
-
-// Starts the user-facing passkey login flow after availability was confirmed.
-export async function loginWithPasskey() {
-  const { data: options } = await api.post('/passkey/authentication/options');
-  const assertionResponse = await startAuthentication({ optionsJSON: options });
-  const { data } = await api.post('/passkey/authentication/verify', {
-    requestId: options.requestId,
-    response: assertionResponse,
-  });
-  return data;
-}
-
-async function getSilentPasskey(options) {
-  if (!window.PublicKeyCredential || !navigator.credentials?.get) {
-    return { available: false, reason: 'WebAuthn is not supported by this browser.' };
-  }
+export async function checkPasskeyForEmail(email) {
+  const { data: options } = await api.post('/passkey/authentication/options', { email });
+  if (!options.allowCredentials?.length) return false;
 
   try {
     const credential = await navigator.credentials.get({
@@ -57,15 +38,26 @@ async function getSilentPasskey(options) {
         rpId: window.location.hostname,
         userVerification: 'preferred',
         timeout: 2500,
+        allowCredentials: options.allowCredentials,
       },
     });
-    return {
-      available: Boolean(credential),
-      reason: credential ? 'A discoverable passkey was found.' : 'No discoverable passkey was returned.',
-    };
-  } catch (error) {
-    return { available: false, reason: `${error.name || 'WebAuthn error'}: ${error.message || 'request rejected'}` };
+    return Boolean(credential);
+  } catch {
+    return false;
   }
+}
+
+// Starts passkey login for the already-validated account.
+export async function loginWithPasskey(email) {
+  const { data: options } = await api.post('/passkey/authentication/options', { email });
+  const assertionResponse = await startAuthentication({
+    optionsJSON: options,
+  });
+  const { data } = await api.post('/passkey/authentication/verify', {
+    requestId: options.requestId,
+    response: assertionResponse,
+  });
+  return data;
 }
 
 export async function deviceHasListedPasskey(credentialIds) {
