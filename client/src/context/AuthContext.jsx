@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api/client';
-import { loginWithPasskey as loginWithPasskeyRequest } from '../utils/webauthn';
+import { checkPasskeyForEmail, loginWithPasskey as loginWithPasskeyRequest } from '../utils/webauthn';
 
 const TOKEN_KEY = 'passkey_poc_token';
 const AuthContext = createContext(null);
@@ -52,9 +52,11 @@ export function AuthProvider({ children }) {
     [applySession],
   );
 
+  const checkPasskey = useCallback((email) => checkPasskeyForEmail(email), []);
+
   const loginPasskey = useCallback(
-    async () => {
-      const data = await loginWithPasskeyRequest();
+    async (email) => {
+      const data = await loginWithPasskeyRequest(email);
       applySession(data.token, data.user, 'passkey');
       return data.user;
     },
@@ -65,6 +67,7 @@ export function AuthProvider({ children }) {
     user,
     initializing,
     loginMethod,
+    checkPasskey,
     continueWithPassword,
     loginPasskey,
     logout,

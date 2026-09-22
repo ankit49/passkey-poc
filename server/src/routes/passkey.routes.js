@@ -8,6 +8,7 @@ import {
 } from '@simplewebauthn/server';
 import {
   findUserById,
+  findUserByEmail,
   getCredentialsByUserId,
   getCredentialById,
   saveCredential,
@@ -63,7 +64,7 @@ router.post('/registration/options', requireAuth, async (req, res) => {
       transports: passkey.transports,
     })),
     authenticatorSelection: {
-      residentKey: 'preferred',
+      residentKey: 'required',
       userVerification: 'preferred',
     },
   });
@@ -118,12 +119,21 @@ router.post('/registration/verify', requireAuth, async (req, res) => {
   res.json({ verified: true });
 });
 
-// Step 1: no identifier needed - options omit allowCredentials so the browser/authenticator
-// presents any discoverable (resident-key) passkey it holds for this RP.
+// Authentication options omit allowCredentials so the browser can discover any passkey for this RP.
 router.post('/authentication/options', async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+  const user = email ? findUserByEmail(email) : undefined;
+  const userPasskeys = user ? getCredentialsByUserId(user.id) : [];
+  console.log(`[passkey] options email=${email || '<empty>'} user=${user ? user.id : 'not-found'} credentials=${userPasskeys.length}`);
   const options = await generateAuthenticationOptions({
     rpID,
+    allowCredentials: userPasskeys.map((passkey) => ({
+      id: passkey.id,
+      transports: passkey.transports,
+    })),
     userVerification: 'preferred',
+    // Cross-device (QR/hybrid) sign-in needs more time than same-device prompts.
+    timeout: 120000,
   });
 
   const requestId = randomUUID();

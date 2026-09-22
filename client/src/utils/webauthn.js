@@ -26,11 +26,46 @@ export async function deletePasskey(credentialId) {
   await api.delete(`/passkey/credentials/${credentialId}`);
 }
 
-// Logs a user in using a discoverable passkey - no email needed, the browser
-// prompts the user to pick from any passkey it holds for this site.
-export async function loginWithPasskey() {
-  const { data: options } = await api.post('/passkey/authentication/options');
-  const assertionResponse = await startAuthentication({ optionsJSON: options });
+export async function checkPasskeyForEmail(email) {
+  const { data: options } = await api.post('/passkey/authentication/options', { email });
+  const credentialCount = options.allowCredentials?.length || 0;
+  if (!credentialCount) return { available: false, credentialCount, reason: 'Server returned no passkeys for this email.' };
+
+  try {
+    const credential = await navigator.credentials.get({
+      mediation: 'silent',
+      publicKey: {
+        challenge: base64URLStringToBuffer(options.challenge),
+        rpId: window.location.hostname,
+        userVerification: 'preferred',
+        timeout: 2500,
+        allowCredentials: options.allowCredentials.map(({ id, transports }) => ({
+          id: base64URLStringToBuffer(id),
+          type: 'public-key',
+          transports,
+        })),
+      },
+    });
+    return {
+      available: Boolean(credential),
+      credentialCount,
+      reason: credential ? 'Matching passkey returned by the browser.' : 'Browser returned no matching credential.',
+    };
+  } catch (error) {
+    return {
+      available: false,
+      credentialCount,
+      reason: `${error.name || 'WebAuthn error'}: ${error.message || 'silent request rejected'}`,
+    };
+  }
+}
+
+// Starts passkey login for the already-validated account.
+export async function loginWithPasskey(email) {
+  const { data: options } = await api.post('/passkey/authentication/options', { email });
+  const assertionResponse = await startAuthentication({
+    optionsJSON: options,
+  });
   const { data } = await api.post('/passkey/authentication/verify', {
     requestId: options.requestId,
     response: assertionResponse,
@@ -38,23 +73,9 @@ export async function loginWithPasskey() {
   return data;
 }
 
-/**
- * Heuristic-only check for whether this device already holds one of the given
- * discoverable credentials, using `mediation: 'silent'` so the user is never
- * prompted. Only reliable on Chromium-based browsers - WebKit (Safari/iOS)
- * doesn't honor silent mediation and shows the passkey sheet regardless, so we
- * skip the probe there and conservatively assume the device is not enrolled.
- */
-function supportsSilentMediation() {
-  const ua = navigator.userAgent;
-  const isWebKit = /iPad|iPhone|iPod/.test(ua) || (/Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua));
-  return !isWebKit;
-}
-
-export async function deviceHasPasskey(credentialIds) {
+export async function deviceHasListedPasskey(credentialIds) {
   if (!credentialIds || credentialIds.length === 0) return false;
   if (!window.PublicKeyCredential || !navigator.credentials?.get) return false;
-  if (!supportsSilentMediation()) return false;
 
   try {
     const challenge = crypto.getRandomValues(new Uint8Array(32));
