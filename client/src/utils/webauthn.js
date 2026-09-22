@@ -44,25 +44,9 @@ export async function loginWithPasskey() {
   return data;
 }
 
-/**
- * Heuristic-only check for whether this device already holds one of the given
- * discoverable credentials, using `mediation: 'silent'` so the user is never
- * prompted. Only reliable on Chromium-based browsers - WebKit (Safari/iOS)
- * doesn't honor silent mediation and shows the passkey sheet regardless, so we
- * skip the probe there and conservatively assume the device is not enrolled.
- */
-function supportsSilentMediation() {
-  const ua = navigator.userAgent;
-  const isWebKit = /iPad|iPhone|iPod/.test(ua) || (/Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua));
-  return !isWebKit;
-}
-
 async function getSilentPasskey(options) {
   if (!window.PublicKeyCredential || !navigator.credentials?.get) {
     return { available: false, reason: 'WebAuthn is not supported by this browser.' };
-  }
-  if (!supportsSilentMediation()) {
-    return { available: false, reason: 'This browser does not support the silent probe path.' };
   }
 
   try {
@@ -87,7 +71,6 @@ async function getSilentPasskey(options) {
 export async function deviceHasListedPasskey(credentialIds) {
   if (!credentialIds || credentialIds.length === 0) return false;
   if (!window.PublicKeyCredential || !navigator.credentials?.get) return false;
-  if (!supportsSilentMediation()) return false;
 
   try {
     const challenge = crypto.getRandomValues(new Uint8Array(32));
