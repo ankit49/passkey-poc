@@ -63,7 +63,7 @@ router.post('/registration/options', requireAuth, async (req, res) => {
       transports: passkey.transports,
     })),
     authenticatorSelection: {
-      residentKey: 'preferred',
+      residentKey: 'required',
       userVerification: 'preferred',
     },
   });

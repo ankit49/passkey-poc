@@ -29,7 +29,8 @@ export async function deletePasskey(credentialId) {
 // Checks for a discoverable passkey without showing UI or signing in.
 export async function checkPasskeyAvailability() {
   const { data: options } = await api.post('/passkey/authentication/options');
-  return Boolean(await getSilentPasskey(options));
+  const result = await getSilentPasskey(options);
+  return result;
 }
 
 // Starts the user-facing passkey login flow after availability was confirmed.
@@ -57,8 +58,12 @@ function supportsSilentMediation() {
 }
 
 async function getSilentPasskey(options) {
-  if (!window.PublicKeyCredential || !navigator.credentials?.get) return false;
-  if (!supportsSilentMediation()) return false;
+  if (!window.PublicKeyCredential || !navigator.credentials?.get) {
+    return { available: false, reason: 'WebAuthn is not supported by this browser.' };
+  }
+  if (!supportsSilentMediation()) {
+    return { available: false, reason: 'This browser does not support the silent probe path.' };
+  }
 
   try {
     const credential = await navigator.credentials.get({
@@ -70,9 +75,12 @@ async function getSilentPasskey(options) {
         timeout: 2500,
       },
     });
-    return credential;
-  } catch {
-    return false;
+    return {
+      available: Boolean(credential),
+      reason: credential ? 'A discoverable passkey was found.' : 'No discoverable passkey was returned.',
+    };
+  } catch (error) {
+    return { available: false, reason: `${error.name || 'WebAuthn error'}: ${error.message || 'request rejected'}` };
   }
 }
 

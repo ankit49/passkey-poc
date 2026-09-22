@@ -20,10 +20,10 @@ export default function LoginPage({ onRegistered }) {
   useEffect(() => {
     addDebugLog('Step 1: checking for a passkey silently...');
     passkeyCheck.current = checkPasskey()
-      .then((available) => {
-        passkeyAvailable.current = available;
-        addDebugLog(available ? 'Passkey found. Waiting for email-field focus.' : 'No passkey found. Staying silent.');
-        return available;
+      .then((result) => {
+        passkeyAvailable.current = result.available;
+        addDebugLog(result.available ? 'Passkey found. Waiting for email-field focus.' : `No passkey found: ${result.reason}`);
+        return result.available;
       })
       .catch((err) => {
         passkeyAvailable.current = false;
