@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api/client';
-import { loginWithPasskeyIfAvailable } from '../utils/webauthn';
+import { checkPasskeyAvailability, loginWithPasskey as loginWithPasskeyRequest } from '../utils/webauthn';
 
 const TOKEN_KEY = 'passkey_poc_token';
 const AuthContext = createContext(null);
@@ -52,10 +52,11 @@ export function AuthProvider({ children }) {
     [applySession],
   );
 
+  const checkPasskey = useCallback(async () => checkPasskeyAvailability(), []);
+
   const loginPasskey = useCallback(
     async () => {
-      const data = await loginWithPasskeyIfAvailable();
-      if (!data) return null;
+      const data = await loginWithPasskeyRequest();
       applySession(data.token, data.user, 'passkey');
       return data.user;
     },
@@ -66,6 +67,7 @@ export function AuthProvider({ children }) {
     user,
     initializing,
     loginMethod,
+    checkPasskey,
     continueWithPassword,
     loginPasskey,
     logout,

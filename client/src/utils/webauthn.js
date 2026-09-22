@@ -26,15 +26,18 @@ export async function deletePasskey(credentialId) {
   await api.delete(`/passkey/credentials/${credentialId}`);
 }
 
-// Logs in only after a silent discoverable-credential probe finds a passkey.
-export async function loginWithPasskeyIfAvailable() {
-  const { data: probeOptions } = await api.post('/passkey/authentication/options');
-  if (!(await deviceHasPasskey(probeOptions))) return null;
+// Checks for a discoverable passkey without showing UI or signing in.
+export async function checkPasskeyAvailability() {
+  const { data: options } = await api.post('/passkey/authentication/options');
+  return Boolean(await getSilentPasskey(options));
+}
 
-  const { data: authenticationOptions } = await api.post('/passkey/authentication/options');
-  const assertionResponse = await startAuthentication({ optionsJSON: authenticationOptions });
+// Starts the user-facing passkey login flow after availability was confirmed.
+export async function loginWithPasskey() {
+  const { data: options } = await api.post('/passkey/authentication/options');
+  const assertionResponse = await startAuthentication({ optionsJSON: options });
   const { data } = await api.post('/passkey/authentication/verify', {
-    requestId: authenticationOptions.requestId,
+    requestId: options.requestId,
     response: assertionResponse,
   });
   return data;
@@ -53,7 +56,7 @@ function supportsSilentMediation() {
   return !isWebKit;
 }
 
-export async function deviceHasPasskey(options) {
+async function getSilentPasskey(options) {
   if (!window.PublicKeyCredential || !navigator.credentials?.get) return false;
   if (!supportsSilentMediation()) return false;
 
@@ -67,7 +70,7 @@ export async function deviceHasPasskey(options) {
         timeout: 2500,
       },
     });
-    return Boolean(credential);
+    return credential;
   } catch {
     return false;
   }
