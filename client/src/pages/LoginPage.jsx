@@ -33,7 +33,7 @@ export default function LoginPage({ onRegistered }) {
       }
 
       addDebugLog('Matching passkey found. Starting passkey login...');
-      await loginPasskey(normalizedEmail);
+      await loginPasskey(result);
       addDebugLog('Passkey login completed.', 'success');
     } catch (err) {
       addDebugLog(`Passkey login failed: ${getErrorMessage(err)}`, 'error');
