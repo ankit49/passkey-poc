@@ -28,7 +28,7 @@ export default function LoginPage({ onRegistered }) {
     try {
       const available = await checkPasskey(normalizedEmail);
       if (!available) {
-        addDebugLog('No matching passkey found. Continue with password.');
+        addDebugLog('No matching passkey found on this device. Continue with password.');
         return;
       }
 

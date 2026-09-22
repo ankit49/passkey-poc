@@ -38,7 +38,11 @@ export async function checkPasskeyForEmail(email) {
         rpId: window.location.hostname,
         userVerification: 'preferred',
         timeout: 2500,
-        allowCredentials: options.allowCredentials,
+        allowCredentials: options.allowCredentials.map(({ id, transports }) => ({
+          id: base64URLStringToBuffer(id),
+          type: 'public-key',
+          transports,
+        })),
       },
     });
     return Boolean(credential);
