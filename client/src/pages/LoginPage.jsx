@@ -15,10 +15,9 @@ export default function LoginPage({ onRegistered }) {
     setDebugLogs((logs) => [...logs.slice(-4), { message, type, time: new Date().toLocaleTimeString() }]);
   }
 
-  async function handleEmailBlur() {
-    const normalizedEmail = email.trim().toLowerCase();
+  async function checkEmailPasskey(value) {
+    const normalizedEmail = value.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      addDebugLog('Email is not valid. Passkey check skipped.');
       return;
     }
     if (passkeyEmailChecked.current === normalizedEmail) return;
@@ -85,8 +84,11 @@ export default function LoginPage({ onRegistered }) {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={handleEmailBlur}
+            onChange={(e) => {
+              const value = e.target.value;
+              setEmail(value);
+              checkEmailPasskey(value);
+            }}
             autoComplete="username"
             required
           />
